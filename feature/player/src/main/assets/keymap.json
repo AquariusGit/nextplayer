@@ -1,0 +1,46 @@
+{
+  "KEYCODE_DPAD_RIGHT": "fastForward",
+  "KEYCODE_MEDIA_NEXT": "fastForward",
+  "KEYCODE_MEDIA_FAST_FORWARD": "fastForward",
+  "KEYCODE_3": "fastForward",
+  "KEYCODE_6": "fastForward",
+  "KEYCODE_9": "fastForward",
+  "KEYCODE_BUTTON_A": "fastForward",
+
+  "KEYCODE_DPAD_LEFT": "rewind",
+  "KEYCODE_MEDIA_PREVIOUS": "rewind",
+  "KEYCODE_MEDIA_REWIND": "rewind",
+  "KEYCODE_1": "rewind",
+  "KEYCODE_4": "rewind",
+  "KEYCODE_7": "rewind",
+  "KEYCODE_BUTTON_Y": "rewind",
+  "KEYCODE_CHANNEL_UP": "rewind",
+
+  "KEYCODE_DPAD_CENTER": "togglePlay",
+  "KEYCODE_ENTER": "togglePlay",
+  "KEYCODE_NUMPAD_ENTER": "togglePlay",
+  "KEYCODE_MEDIA_PLAY_PAUSE": "togglePlay",
+  "KEYCODE_MEDIA_PAUSE": "togglePlay",
+  "KEYCODE_MEDIA_PLAY": "togglePlay",
+  "KEYCODE_BUTTON_B": "togglePlay",
+  "KEYCODE_BUTTON_X": "togglePlay",
+  "KEYCODE_HEADSETHOOK": "togglePlay",
+  "KEYCODE_0": "togglePlay",
+  "KEYCODE_2": "togglePlay",
+  "KEYCODE_5": "togglePlay",
+  "KEYCODE_8": "togglePlay",
+  "KEYCODE_CHANNEL_DOWN": "togglePlay",
+
+  "KEYCODE_DPAD_UP": "setPauseTimer",
+  "KEYCODE_DPAD_DOWN": "screenshot",
+
+  "KEYCODE_MENU": "screenshot",
+  "KEYCODE_SEARCH": "screenshot",
+
+  "step": "5000",
+  "margin": "40",
+  "repeat_interval":"100",
+  "screenshot_interval":"1000",
+  "combo_click_keys": "KEYCODE_MENU"
+
+}
