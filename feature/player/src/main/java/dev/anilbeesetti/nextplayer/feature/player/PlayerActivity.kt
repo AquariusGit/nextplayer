@@ -13,20 +13,30 @@ import android.content.IntentFilter
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.Typeface
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.Icon
 import android.media.AudioManager
+import android.media.MediaScannerConnection
 import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.os.Process
 import android.util.Rational
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.KeyEvent
+import android.view.PixelCopy
+import android.view.SurfaceView
+import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup.LayoutParams
 import android.view.WindowManager
@@ -71,7 +81,6 @@ import dev.anilbeesetti.nextplayer.core.model.ControlButtonsPosition
 import dev.anilbeesetti.nextplayer.core.model.LoopMode
 import dev.anilbeesetti.nextplayer.core.model.ThemeConfig
 import dev.anilbeesetti.nextplayer.core.model.VideoZoom
-import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 import dev.anilbeesetti.nextplayer.feature.player.databinding.ActivityPlayerBinding
 import dev.anilbeesetti.nextplayer.feature.player.dialogs.PlaybackSpeedControlsDialogFragment
 import dev.anilbeesetti.nextplayer.feature.player.dialogs.TrackSelectionDialogFragment
@@ -100,14 +109,21 @@ import dev.anilbeesetti.nextplayer.feature.player.utils.PlayerApi
 import dev.anilbeesetti.nextplayer.feature.player.utils.PlayerGestureHelper
 import dev.anilbeesetti.nextplayer.feature.player.utils.VolumeManager
 import dev.anilbeesetti.nextplayer.feature.player.utils.toMillis
-import kotlin.apply
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import timber.log.Timber
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
+
 
 @SuppressLint("UnsafeOptInUsageError")
 @AndroidEntryPoint
@@ -188,6 +204,14 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var playInBackgroundButton: ImageButton
     private lateinit var loopModeButton: ImageButton
     private lateinit var extraControls: LinearLayout
+
+    private lateinit var configJson: JSONObject
+
+    private lateinit var keyPressTimes: MutableMap<String,Long>
+
+    private lateinit var comboClickKeys: MutableSet<String>
+
+    private var repeat_interval=100
 
     private val isPipSupported: Boolean by lazy {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
@@ -317,6 +341,42 @@ class PlayerActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback {
             finishAndStopPlayerSession()
         }
+    }
+
+    private fun loadConfig(): JSONObject {
+
+
+
+        try {
+            val uri = intent.data
+
+            // 首先尝试从视频文件目录下加载 keymap.json
+            val videoUri = Uri.parse(uri.toString())
+            val videoPath = videoUri.path?.substringBeforeLast("/")
+
+            if (videoPath != null) {
+                val videoDirKeymap = File("$videoPath/keymap.json")
+                if (videoDirKeymap.exists()) {
+                    val jsonString = videoDirKeymap.readText()
+                    return JSONObject(jsonString)
+                }
+            }
+
+            // 如果视频文件目录下没有找到，则尝试从存储根目录下的config目录加载
+            val configFile = File("${Environment.getExternalStorageDirectory()}/config/keymap.json")
+            if (configFile.exists()) {
+                val jsonString = configFile.readText()
+                return JSONObject(jsonString)
+            }
+
+        } catch (e: Exception) {
+            //Nothing to do
+        }
+
+        // 如果以上两个位置都没有找到，则从assets中加载默认配置
+        val inputStream = assets.open("keymap.json")
+        val jsonString = inputStream.bufferedReader().use { it.readText() }
+        return JSONObject(jsonString)
     }
 
     override fun onStart() {
@@ -733,6 +793,16 @@ class PlayerActivity : AppCompatActivity() {
         lifecycleScope.launch {
             playVideo(uri)
         }
+
+        this.configJson= loadConfig()
+        keyPressTimes= HashMap<String, Long>()
+        comboClickKeys= HashSet<String>()
+
+        this.configJson.optString("combo_click_keys")?.split(",")?.forEach {
+            (comboClickKeys as HashSet<String>).add(it.trim())
+        }
+
+        repeat_interval=this.configJson.optInt("repeat_interval",100)
     }
 
     private suspend fun playVideo(uri: Uri) = withContext(Dispatchers.Default) {
@@ -903,11 +973,94 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
+    fun togglePlay(){
+        binding.playerView.togglePlayPause()
+
+        binding.playerView.player?.isPlaying()?.let {
+            if(it){
+                showPlayerInfo(
+                    info = "▶\uFE0F",
+                    subInfo = "",
+                )
+            }
+            else{
+                showPlayerInfo(
+                    info = "⏸\uFE0E",
+                    subInfo = "",
+                )
+            }
+        }
+    }
+
+    fun fastForward(){
+        mediaController?.run {
+            if (scrubStartPosition == -1L) {
+                scrubStartPosition = currentPosition
+            }
+
+            val position = (currentPosition + 10_000).coerceAtMost(duration)
+            seekForward(position, shouldFastSeek)
+
+            showPlayerInfo(
+                info = Utils.formatDurationMillis(position),
+                subInfo = "[${Utils.formatDurationMillisSign(position + scrubStartPosition)}]",
+            )
+        }
+    }
+
+    fun rewind(){
+        mediaController?.run {
+            if (scrubStartPosition == -1L) {
+                scrubStartPosition = currentPosition
+            }
+
+            val position = (currentPosition - 10_000).coerceAtMost(duration)
+            seekForward(position, shouldFastSeek)
+
+            showPlayerInfo(
+                info = Utils.formatDurationMillis(position),
+                subInfo = "[${Utils.formatDurationMillisSign(position - scrubStartPosition)}]",
+            )
+        }
+    }
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+
+        var keyEventName =KeyEvent.keyCodeToString(keyCode)
+
+        if(this.comboClickKeys.contains(keyEventName)){
+            val currentTime= System.currentTimeMillis()
+            val lastPressTime : Long= this.keyPressTimes?.get(keyEventName) ?:0L
+            this.keyPressTimes.put(keyEventName, currentTime)
+
+            if(currentTime - lastPressTime <= repeat_interval){
+                return true
+            }
+        }
+
+        try {
+
+            var methodName=this.configJson.optString(keyEventName)
+            if(null!=methodName && methodName.isNotEmpty()){
+                when(methodName){
+                    "togglePlay" -> {togglePlay();return true}
+                    "fastForward" -> {fastForward();return true}
+                    "rewind" -> {rewind();return true}
+                    "screenshot" -> {
+                        screenshot()
+                    }
+                    "startPauseTimer" -> {startPauseTimer();return true}
+                }
+            }
+        }
+        catch (e: Exception){
+            //Nothing to do
+        }
+
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP,
             KeyEvent.KEYCODE_DPAD_UP,
-            -> {
+                -> {
                 if (!binding.playerView.isControllerFullyVisible || keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
                     volumeManager.increaseVolume(playerPreferences.showSystemVolumePanel)
                     showVolumeGestureLayout()
@@ -917,7 +1070,7 @@ class PlayerActivity : AppCompatActivity() {
 
             KeyEvent.KEYCODE_VOLUME_DOWN,
             KeyEvent.KEYCODE_DPAD_DOWN,
-            -> {
+                -> {
                 if (!binding.playerView.isControllerFullyVisible || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
                     volumeManager.decreaseVolume(playerPreferences.showSystemVolumePanel)
                     showVolumeGestureLayout()
@@ -929,7 +1082,7 @@ class PlayerActivity : AppCompatActivity() {
             KeyEvent.KEYCODE_MEDIA_PAUSE,
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
             KeyEvent.KEYCODE_BUTTON_SELECT,
-            -> {
+                -> {
                 when {
                     keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE -> mediaController?.pause()
                     keyCode == KeyEvent.KEYCODE_MEDIA_PLAY -> mediaController?.play()
@@ -942,7 +1095,7 @@ class PlayerActivity : AppCompatActivity() {
             KeyEvent.KEYCODE_BUTTON_START,
             KeyEvent.KEYCODE_BUTTON_A,
             KeyEvent.KEYCODE_SPACE,
-            -> {
+                -> {
                 if (!binding.playerView.isControllerFullyVisible) {
                     binding.playerView.togglePlayPause()
                     return true
@@ -952,7 +1105,7 @@ class PlayerActivity : AppCompatActivity() {
             KeyEvent.KEYCODE_DPAD_LEFT,
             KeyEvent.KEYCODE_BUTTON_L2,
             KeyEvent.KEYCODE_MEDIA_REWIND,
-            -> {
+                -> {
                 if (!binding.playerView.isControllerFullyVisible || keyCode == KeyEvent.KEYCODE_MEDIA_REWIND) {
                     mediaController?.run {
                         if (scrubStartPosition == -1L) {
@@ -972,7 +1125,7 @@ class PlayerActivity : AppCompatActivity() {
             KeyEvent.KEYCODE_DPAD_RIGHT,
             KeyEvent.KEYCODE_BUTTON_R2,
             KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
-            -> {
+                -> {
                 if (!binding.playerView.isControllerFullyVisible || keyCode == KeyEvent.KEYCODE_MEDIA_FAST_FORWARD) {
                     mediaController?.run {
                         if (scrubStartPosition == -1L) {
@@ -993,7 +1146,7 @@ class PlayerActivity : AppCompatActivity() {
             KeyEvent.KEYCODE_ENTER,
             KeyEvent.KEYCODE_DPAD_CENTER,
             KeyEvent.KEYCODE_NUMPAD_ENTER,
-            -> {
+                -> {
                 if (!binding.playerView.isControllerFullyVisible) {
                     binding.playerView.showController()
                     return true
@@ -1011,12 +1164,33 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+
+        var keyEventName =KeyEvent.keyCodeToString(keyCode)
+        if(this.configJson.has(keyEventName)){
+
+            hideVolumeGestureLayout()
+
+            var methodName=this.configJson.optString(keyEventName)
+            if("togglePlay".equals(methodName)){
+                binding.playerView.player?.isPlaying()?.let {
+                    if(it){
+                        hidePlayerInfo()
+                    }
+                }
+            }
+            else{
+                hidePlayerInfo()
+            }
+
+            return true
+        }
+
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP,
             KeyEvent.KEYCODE_VOLUME_DOWN,
             KeyEvent.KEYCODE_DPAD_UP,
             KeyEvent.KEYCODE_DPAD_DOWN,
-            -> {
+                -> {
                 hideVolumeGestureLayout()
                 return true
             }
@@ -1027,7 +1201,7 @@ class PlayerActivity : AppCompatActivity() {
             KeyEvent.KEYCODE_DPAD_RIGHT,
             KeyEvent.KEYCODE_BUTTON_R2,
             KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
-            -> {
+                -> {
                 hidePlayerInfo()
                 return true
             }
@@ -1071,6 +1245,17 @@ class PlayerActivity : AppCompatActivity() {
         hideInfoLayoutJob?.cancel()
         with(binding) {
             infoLayout.visibility = View.VISIBLE
+            infoText.text = info
+            infoSubtext.visibility = View.GONE.takeIf { subInfo == null } ?: View.VISIBLE
+            infoSubtext.text = subInfo
+        }
+    }
+
+    fun showPlayerInfo(info: String, infoDrawable: Drawable?, subInfo: String? = null) {
+        hideInfoLayoutJob?.cancel()
+        with(binding) {
+            infoLayout.visibility = View.VISIBLE
+            infoText.setCompoundDrawables(infoDrawable, null, null, null)
             infoText.text = info
             infoSubtext.visibility = View.GONE.takeIf { subInfo == null } ?: View.VISIBLE
             infoSubtext.text = subInfo
@@ -1166,6 +1351,172 @@ class PlayerActivity : AppCompatActivity() {
             }
         }
     }
+
+    // 在 PlayerActivity 类中添加以下属性和方法
+
+    private var pauseTimerJob: Job? = null
+    private var pauseTimerRemainingSeconds: Long = 0
+    private val pauseTimerInterval = 5 * 60L // 5分钟 = 300秒
+
+    fun setPauseTimer() {
+        if (pauseTimerJob?.isActive == true) {
+            // 如果已经有定时器在运行，则取消它
+            pauseTimerJob?.cancel()
+            pauseTimerJob = null
+
+            // 在主线程显示提示信息
+            runOnUiThread {
+                Toast.makeText(this, "已取消暂停计时器", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            // 启动新的5分钟定时器
+            pauseTimerRemainingSeconds = pauseTimerInterval
+            startPauseTimer()
+
+            runOnUiThread {
+                Toast.makeText(this, "已开启暂停计时器", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun startPauseTimer() {
+        pauseTimerJob = lifecycleScope.launch {
+            while (pauseTimerRemainingSeconds > 0) {
+                delay(1000L) // 每秒更新一次
+                pauseTimerRemainingSeconds--
+
+            }
+
+            // 时间结束，暂停播放
+            mediaController?.pause()
+            pauseTimerJob = null
+        }
+    }
+
+
+    fun screenshot() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        val bitmap = Bitmap.createBitmap(
+            binding.playerView.width,
+            binding.playerView.height,
+            Bitmap.Config.ARGB_8888,
+        )
+
+        val handler = Handler(Looper.getMainLooper())
+
+        var view= binding.playerView.videoSurfaceView
+
+        if(view is TextureView){
+            var textureView = view as TextureView
+            val bitmap = (view as TextureView).getBitmap()
+            if (bitmap != null) {
+                saveScreenshot(bitmap)
+                return
+            }
+        }
+
+        if(view is SurfaceView){
+            var surfaceView  = view as SurfaceView
+            PixelCopy.request(
+                surfaceView, bitmap,
+                { copyResult ->
+                    if (copyResult == PixelCopy.SUCCESS) {
+                        // 成功获取截图
+                        saveScreenshot(bitmap)
+                    } else {
+                        Toast.makeText(this, "截图失败", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                handler,
+            )
+        }
+
+
+    } else {
+        // Android N 以下版本使用原来的截图方法
+        fallbackScreenshot()
+    }
+}
+
+private fun fallbackScreenshot() {
+    try {
+        // 禁用硬件加速临时截图
+        binding.playerView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+
+        val bitmap = Bitmap.createBitmap(
+            binding.playerView.width,
+            binding.playerView.height,
+            Bitmap.Config.ARGB_8888,
+        )
+        val canvas = Canvas(bitmap)
+        binding.playerView.draw(canvas)
+
+        // 恢复硬件加速
+        binding.playerView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+
+        saveScreenshot(bitmap)
+    } catch (e: Exception) {
+        Timber.e(e, "Failed to take screenshot")
+        // 恢复硬件加速（确保异常时也恢复）
+        binding.playerView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+    }
+}
+
+
+
+    private fun saveScreenshot(bitmap: Bitmap) {
+        try {
+            val videoName = mediaController?.currentMediaItem?.mediaMetadata?.title?.toString()
+                ?: "screenshot"
+
+            // 创建时间戳格式 hh_mm_ss
+            val currentTime = Calendar.getInstance().time
+            val timeFormat = SimpleDateFormat("hh_mm_ss", Locale.getDefault())
+            val timeStamp = timeFormat.format(currentTime)
+
+            // 文件名格式: 视频名称_hh_mm_ss.png
+            val fileName = "${videoName}_$timeStamp.png"
+
+            // 创建 next 子目录
+            val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+            val nextDir = File(picturesDir, "next")
+            if (!nextDir.exists()) {
+                nextDir.mkdirs()
+            }
+
+            // 保存文件
+            val file = File(nextDir, fileName)
+            val outputStream = FileOutputStream(file)
+            bitmap.compress(Bitmap.CompressFormat.PNG, 90, outputStream)
+            outputStream.flush()
+            outputStream.close()
+
+            // 通知媒体扫描器更新
+            val mimeType = "image/png"
+            MediaScannerConnection.scanFile(
+                this@PlayerActivity,
+                arrayOf(file.absolutePath),
+                arrayOf(mimeType),
+            ) { path, uri ->
+                Timber.d("Saved screenshot to $path, URI: $uri")
+            }
+
+            // 在主线程显示提示信息
+            Toast.makeText(
+                this@PlayerActivity,
+                "The screenshot has been saved to" + file.absolutePath,
+                Toast.LENGTH_SHORT,
+            ).show()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to save screenshot")
+            Toast.makeText(
+                this@PlayerActivity,
+                "The screenshot was not saved successfully.",
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+
 
     private fun changeAndSaveVideoZoom(videoZoom: VideoZoom) {
         applyVideoZoom(videoZoom)
