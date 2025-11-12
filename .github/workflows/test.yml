@@ -34,7 +34,7 @@ jobs:
       - name: Build With Gradle
         run: |
           chmod +x gradlew
-          ./gradlew assemblerelease  -Pandroid.injected.signing.store.file=my-release-key.keystore -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} -Pandroid.injected.signing.key.alias=my-alias-name -Pandroid.injected.signing.key.password=${{ secrets.KEYSTORE_KEY_PASSWORD }} --build-cache --parallel --daemon --warning-mode all
+          ./gradlew assemblerelease  -Pandroid.injected.signing.store.file=my-release-key.keystore -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} -Pandroid.injected.signing.key.alias=aquarius_app -Pandroid.injected.signing.key.password=${{ secrets.KEYSTORE_KEY_PASSWORD }} --build-cache --parallel --daemon --warning-mode all
           
       - name: Prepare App
         run: |
