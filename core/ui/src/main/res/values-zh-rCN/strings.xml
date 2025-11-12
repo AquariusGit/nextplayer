@@ -140,6 +140,7 @@
     <string name="delete">删除</string>
     <string name="delete_folder">下列文件夹中所有视频文件会被永久删除</string>
     <string name="autoplay_settings">自动播放</string>
+    <string name="auto_resume_play_settings">恢复播放状态</string>
     <string name="autoplay_settings_description">自动播放当前文件夹中的下一个视频</string>
     <string name="best_fit">最合适</string>
     <string name="stretch">拉伸</string>
@@ -182,6 +183,7 @@
     <string name="format">格式</string>
     <string name="volume_boost_desc">将音量增强到最大 200%</string>
     <string name="volume_boost">音量增强</string>
+    <string name="auto_resume_play_settings_description">快进或者后退后恢复播放状态</string>
     <string name="pip_settings">画中画模式</string>
     <string name="pip_settings_description">点按主屏幕按钮时自动切换到迷你播放器</string>
     <string name="open_subtitle">打开本地字幕</string>

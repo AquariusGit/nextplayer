@@ -993,34 +993,49 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     fun fastForward(){
+
+
+
         mediaController?.run {
             if (scrubStartPosition == -1L) {
                 scrubStartPosition = currentPosition
             }
 
-            val position = (currentPosition + 10_000).coerceAtMost(duration)
+            var seekIncrement=viewModel.playerPrefs.value.seekIncrement.toMillis
+            val position = (currentPosition + seekIncrement).coerceAtMost(duration)
             seekForward(position, shouldFastSeek)
 
             showPlayerInfo(
                 info = Utils.formatDurationMillis(position),
                 subInfo = "[${Utils.formatDurationMillisSign(position + scrubStartPosition)}]",
             )
+
+            if(viewModel.playerPrefs.value.autoResumePlay){
+                play()
+            }
         }
     }
 
     fun rewind(){
+
+
         mediaController?.run {
             if (scrubStartPosition == -1L) {
                 scrubStartPosition = currentPosition
             }
 
-            val position = (currentPosition - 10_000).coerceAtMost(duration)
+            var seekIncrement=viewModel.playerPrefs.value.seekIncrement.toMillis
+            val position = (currentPosition - seekIncrement).coerceAtMost(duration)
             seekForward(position, shouldFastSeek)
 
             showPlayerInfo(
                 info = Utils.formatDurationMillis(position),
                 subInfo = "[${Utils.formatDurationMillisSign(position - scrubStartPosition)}]",
             )
+
+            if(viewModel.playerPrefs.value.autoResumePlay){
+                play()
+            }
         }
     }
 
@@ -1395,72 +1410,72 @@ class PlayerActivity : AppCompatActivity() {
 
 
     fun screenshot() {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-        val bitmap = Bitmap.createBitmap(
-            binding.playerView.width,
-            binding.playerView.height,
-            Bitmap.Config.ARGB_8888,
-        )
-
-        val handler = Handler(Looper.getMainLooper())
-
-        var view= binding.playerView.videoSurfaceView
-
-        if(view is TextureView){
-            var textureView = view as TextureView
-            val bitmap = (view as TextureView).getBitmap()
-            if (bitmap != null) {
-                saveScreenshot(bitmap)
-                return
-            }
-        }
-
-        if(view is SurfaceView){
-            var surfaceView  = view as SurfaceView
-            PixelCopy.request(
-                surfaceView, bitmap,
-                { copyResult ->
-                    if (copyResult == PixelCopy.SUCCESS) {
-                        // 成功获取截图
-                        saveScreenshot(bitmap)
-                    } else {
-                        Toast.makeText(this, "截图失败", Toast.LENGTH_SHORT).show()
-                    }
-                },
-                handler,
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            val bitmap = Bitmap.createBitmap(
+                binding.playerView.width,
+                binding.playerView.height,
+                Bitmap.Config.ARGB_8888,
             )
+
+            val handler = Handler(Looper.getMainLooper())
+
+            var view= binding.playerView.videoSurfaceView
+
+            if(view is TextureView){
+                var textureView = view as TextureView
+                val bitmap = (view as TextureView).getBitmap()
+                if (bitmap != null) {
+                    saveScreenshot(bitmap)
+                    return
+                }
+            }
+
+            if(view is SurfaceView){
+                var surfaceView  = view as SurfaceView
+                PixelCopy.request(
+                    surfaceView, bitmap,
+                    { copyResult ->
+                        if (copyResult == PixelCopy.SUCCESS) {
+                            // 成功获取截图
+                            saveScreenshot(bitmap)
+                        } else {
+                            Toast.makeText(this, "截图失败", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    handler,
+                )
+            }
+
+
+        } else {
+            // Android N 以下版本使用原来的截图方法
+            fallbackScreenshot()
         }
-
-
-    } else {
-        // Android N 以下版本使用原来的截图方法
-        fallbackScreenshot()
     }
-}
 
-private fun fallbackScreenshot() {
-    try {
-        // 禁用硬件加速临时截图
-        binding.playerView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+    private fun fallbackScreenshot() {
+        try {
+            // 禁用硬件加速临时截图
+            binding.playerView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
 
-        val bitmap = Bitmap.createBitmap(
-            binding.playerView.width,
-            binding.playerView.height,
-            Bitmap.Config.ARGB_8888,
-        )
-        val canvas = Canvas(bitmap)
-        binding.playerView.draw(canvas)
+            val bitmap = Bitmap.createBitmap(
+                binding.playerView.width,
+                binding.playerView.height,
+                Bitmap.Config.ARGB_8888,
+            )
+            val canvas = Canvas(bitmap)
+            binding.playerView.draw(canvas)
 
-        // 恢复硬件加速
-        binding.playerView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            // 恢复硬件加速
+            binding.playerView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
-        saveScreenshot(bitmap)
-    } catch (e: Exception) {
-        Timber.e(e, "Failed to take screenshot")
-        // 恢复硬件加速（确保异常时也恢复）
-        binding.playerView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            saveScreenshot(bitmap)
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to take screenshot")
+            // 恢复硬件加速（确保异常时也恢复）
+            binding.playerView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        }
     }
-}
 
 
 

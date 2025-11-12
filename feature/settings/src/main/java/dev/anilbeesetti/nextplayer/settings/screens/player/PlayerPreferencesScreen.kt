@@ -140,6 +140,10 @@ fun PlayerPreferencesScreen(
                 isChecked = preferences.autoplay,
                 onClick = viewModel::toggleAutoplay,
             )
+            AutoResumePlaySetting(
+                isChecked = preferences.autoResumePlay,
+                onClick = viewModel::toggleAutoResumePlay,
+            )
             PipSetting(
                 isChecked = preferences.autoPip,
                 onClick = viewModel::toggleAutoPip,
@@ -521,6 +525,22 @@ fun AutoplaySetting(
             id = R.string.autoplay_settings_description,
         ),
         icon = NextIcons.Player,
+        isChecked = isChecked,
+        onClick = onClick,
+    )
+}
+
+@Composable
+fun AutoResumePlaySetting(
+    isChecked: Boolean,
+    onClick: () -> Unit,
+) {
+    PreferenceSwitch(
+        title = stringResource(id = R.string.auto_resume_play_settings),
+        description = stringResource(
+            id = R.string.auto_resume_play_settings_description,
+        ),
+        icon = NextIcons.Replay,
         isChecked = isChecked,
         onClick = onClick,
     )

@@ -34,6 +34,7 @@
     <string name="media_library_description">掃描與管理媒體庫</string>
     <string name="player_controls_progress">播放器進度列</string>
     <string name="descending">遞減</string>
+    <string name="auto_resume_play_settings">恢复播放状态</string>
     <string name="autoplay_settings_description">自動播放在目前資料夾中下一個影片</string>
     <string name="controller_timeout">控制器逾時</string>
     <string name="no_videos_found">沒有找到影片</string>
@@ -182,6 +183,7 @@
     <string name="format">格式</string>
     <string name="volume_boost_desc">提升音量高達 200%</string>
     <string name="volume_boost">音量增幅器</string>
+    <string name="auto_resume_play_settings_description">快进或者后退后恢复播放状态</string>
     <string name="pip_settings">子母畫面模式</string>
     <string name="pip_settings_description">當輕觸主畫面按鈕時自動切換至迷你播放器</string>
     <string name="open_subtitle">開啟本機字幕</string>

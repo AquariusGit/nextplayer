@@ -106,6 +106,14 @@ class PlayerPreferencesViewModel @Inject constructor(
         }
     }
 
+    fun toggleAutoResumePlay() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(autoResumePlay = !it.autoResumePlay)
+            }
+        }
+    }
+
     fun toggleAutoPip() {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences {

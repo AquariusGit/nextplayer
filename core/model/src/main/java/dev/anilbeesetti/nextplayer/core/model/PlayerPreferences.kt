@@ -17,6 +17,7 @@ data class PlayerPreferences(
     val controllerAutoHideTimeout: Int = 2,
     val seekIncrement: Int = 10,
     val autoplay: Boolean = true,
+    var autoResumePlay: Boolean = true,
     val autoPip: Boolean = true,
     val autoBackgroundPlay: Boolean = false,
     val loopMode: LoopMode = LoopMode.OFF,
