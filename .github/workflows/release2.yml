@@ -11,6 +11,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: 获取日期 (yyyy-MM-dd)
+        run: |
+          DATE=$(date +'%Y-%m-%d')
+          echo "DATE=$DATE" >> $GITHUB_ENV
+      
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -45,15 +50,15 @@ jobs:
       - name: Upload arm64-v8a To Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NextPlayer-arm64-v8a-release.apk
-          path: ${{ github.workspace }}/apk/NextPlayer-arm64-v8a-release.apk
+          name: NextPlayer-arm64-v8a-release-${{ env.DATE }}.apk
+          path: ${{ github.workspace }}/apk/NextPlayer-arm64-v8a-release-${{ env.DATE }}.apk
           overwrite: true
           compression-level: 0
       
       - name: Upload armeabi-V7a To Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NextPlayer-armeabi-v7a-release.apk
-          path: ${{ github.workspace }}/apk/NextPlayer-armeabi-v7a-release.apk
+          name: NextPlayer-armeabi-v7a-release-${{ env.DATE }}.apk
+          path: ${{ github.workspace }}/apk/NextPlayer-armeabi-v7a-release-${{ env.DATE }}.apk
           overwrite: true
           compression-level: 0
