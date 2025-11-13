@@ -1,8 +1,9 @@
 name: Android Version Bump Automation
 on:
-  push:
-    branches:
-      - 'bump/v*.*.*'
+#    push:
+#      branches:
+#        - 'bump/v*.*.*'
+  workflow_dispatch:
 
 jobs:
   bump-version-and-open-pr:
