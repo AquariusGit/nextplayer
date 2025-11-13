@@ -48,3 +48,4 @@ jobs:
           name: my-artifact-${{ github.job }}
           path: ${{ github.workspace }}/apk/*
           overwrite: true
+          compression-level: 0
