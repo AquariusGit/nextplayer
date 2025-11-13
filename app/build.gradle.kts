@@ -1,6 +1,10 @@
 import com.android.build.OutputFile
 import com.android.build.gradle.internal.api.ApkVariantOutputImpl
 
+
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
@@ -19,28 +23,6 @@ android {
         applicationId = "dev.anilbeesetti.nextplayer"
         versionCode = 42
         versionName = "0.14.1"
-    }
-
-
-    applicationVariants.all { variant ->
-        variant.outputs.all {
-            val abi = variant.getFilter(OutputFile.ABI)
-            val buildType = variant.buildType.name
-            val versionName = variant.versionName
-            val versionCode = variant.versionCode
-            val abiSuffix = if (abi != null) "-$abi" else ""
-
-            // AGP 8.x 使用 outputFileName.set()
-            try {
-                val outputImpl = this as ApkVariantOutputImpl
-                outputImpl.outputFileName.set("NextPlayer${abiSuffix}-${buildType}-v${versionName}(${versionCode}).apk")
-            } catch (e: Exception) {
-                // 兼容旧版 AGP（≤7.x）
-                @Suppress("DEPRECATION")
-                val oldOutput = this as com.android.build.gradle.api.ApkVariantOutput
-                oldOutput.outputFileName = "NextPlayer${abiSuffix}-${buildType}-v${versionName}(${versionCode}).apk"
-            }
-        }
     }
 
     buildFeatures {
@@ -92,6 +74,23 @@ android {
             //include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
             include("armeabi-v7a", "arm64-v8a")
             isUniversalApk = false
+        }
+    }
+
+    applicationVariants.all {
+        outputs.all {
+            if (this is ApkVariantOutputImpl) {
+
+                val date = LocalDate.now() // 获取当前日期
+                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd") // 定义日期格式
+                val formattedDate = date.format(formatter) // 格式化日期
+
+                val abiFilter = this.getFilter(OutputFile.ABI)
+
+                if (abiFilter != null && name.contains("release", ignoreCase = true)) {
+                    outputFileName = "NextPlayer-$abiFilter-release-$formattedDate.apk"
+                }
+            }
         }
     }
 
