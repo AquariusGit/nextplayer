@@ -50,7 +50,7 @@ jobs:
       - name: Upload arm64-v8a To Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NextPlayer-arm64-v8a-release-${{ env.DATE }}.apk
+          name: NextPlayer-arm64-v8a-release-${{ env.DATE }}
           path: ${{ github.workspace }}/apk/NextPlayer-arm64-v8a-release-${{ env.DATE }}.apk
           overwrite: true
           compression-level: 0
@@ -58,7 +58,7 @@ jobs:
       - name: Upload armeabi-V7a To Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NextPlayer-armeabi-v7a-release-${{ env.DATE }}.apk
+          name: NextPlayer-armeabi-v7a-release-${{ env.DATE }}
           path: ${{ github.workspace }}/apk/NextPlayer-armeabi-v7a-release-${{ env.DATE }}.apk
           overwrite: true
           compression-level: 0
