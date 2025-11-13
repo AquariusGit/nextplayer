@@ -26,7 +26,7 @@ android {
             val versionCode = variant.versionCode
     
             val abiSuffix = if (abi != null) "-$abi" else ""
-            outputFileName = "NextPlayer$abiSuffix-$buildType.apk"
+            outputFileName = "NextPlayer-$abiSuffix-$buildType.apk"
         }
     }
 
