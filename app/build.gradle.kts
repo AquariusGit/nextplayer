@@ -18,6 +18,18 @@ android {
         versionName = "0.14.1"
     }
 
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            val abi = variant.getFilter(com.android.build.OutputFile.ABI)
+            val buildType = variant.buildType.name
+            val versionName = variant.versionName
+            val versionCode = variant.versionCode
+    
+            val abiSuffix = if (abi != null) "-$abi" else ""
+            outputFileName = "NextPlayer$abiSuffix-$buildType.apk"
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
