@@ -21,13 +21,22 @@ android {
 
     applicationVariants.all { variant ->
         variant.outputs.all {
-            val abi = variant.getFilter(com.android.build.OutputFile.ABI)
+            val abi = variant.getFilter(OutputFile.ABI)
             val buildType = variant.buildType.name
             val versionName = variant.versionName
             val versionCode = variant.versionCode
-
             val abiSuffix = if (abi != null) "-$abi" else ""
-            outputFileName.set("NextPlayer-${abiSuffix}-${buildType}.apk")
+
+            // AGP 8.x 使用 outputFileName.set()
+            try {
+                val outputImpl = this as ApkVariantOutputImpl
+                outputImpl.outputFileName.set("NextPlayer${abiSuffix}-${buildType}-v${versionName}(${versionCode}).apk")
+            } catch (e: Exception) {
+                // 兼容旧版 AGP（≤7.x）
+                @Suppress("DEPRECATION")
+                val oldOutput = this as com.android.build.gradle.api.ApkVariantOutput
+                oldOutput.outputFileName = "NextPlayer${abiSuffix}-${buildType}-v${versionName}(${versionCode}).apk"
+            }
         }
     }
 
